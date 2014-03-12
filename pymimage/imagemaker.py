@@ -40,6 +40,7 @@ class ImageMaker(object):
             else:
                 reader = CustomReader.get_reader(file_name)
             ome_file = reader(ome_full_name)
+            ome_file.read_meta()
             return ome_file
         else:
             logging.info('No OME file %s found for image %s'%(ome_name, file_name))

@@ -89,7 +89,7 @@ class OMEXMLMaker(object):
         else:
             self.tool_dir = os.path.normpath(os.path.join(os.path.abspath(os.path.dirname(__file__)),'..','..','bftools'))
         self.convert_cmd = os.path.join(self.tool_dir,'bfconvert')+' -no-upgrade -compression zlib  "{0}" "{1}"'
-        self.toconvert = []
+        self.toconvert = {}
         self.converted = []
         self.failed = []
         self.logger = logging.getLogger(__name__)
@@ -122,13 +122,11 @@ class OMEXMLMaker(object):
         if not (java_check() and tools_check(self.tool_dir)):
             raise RuntimeError
 
-
     def reset_convert_list(self):
-        self.toconvert = []
+        self.toconvert = {}
 
     def add_file_to_convert(self, file_in, file_out):
-        #caller is reader instance who added file to be converted. it needs to be notified when file is done
-        self.toconvert.append((file_in, file_out))
+        self.toconvert[file_in] = file_out
 
     def check_progress(self):
         for f in self.shellrunners.keys():
@@ -143,8 +141,8 @@ class OMEXMLMaker(object):
                 if res[0] == 1:
                     self.logger.error('File %s failed to convert'%f)
                     self.logger.error('Command: '+self.shellrunners[f].command)
-                    self.logger.error(res[1])
-                    omename = [el for el in self.shellrunners[f].command.split('"') if el.strip()][-1]
+                    self.logger.error('Error message:{}'.format(res[1]))
+                    omename = self.toconvert[f]
                     self.failed.append(f)
                     if os.path.isfile(omename):
                         os.remove(omename)
@@ -155,9 +153,7 @@ class OMEXMLMaker(object):
                 else:
                     self.logger.info(res[2])
                     self.converted.append(f)
-                    #self.toconvert[f].check_for_ome()
                 self.done += 1
-                #self.filesConverted.emit(self.done)
         if not self.herder.check_status():
             self.wrap_up_conversion()
 
@@ -167,9 +163,9 @@ class OMEXMLMaker(object):
         self.done = 0
         self.shellrunners = {}
         self.herder = RunnerHerder(3)
-        self.files_to_convert = [el[0] for el in self.toconvert]
+        self.files_to_convert = self.toconvert.keys()
         self.files_to_convert.sort()
-        for f,f_out in self.toconvert:
+        for f, f_out in self.toconvert.iteritems():
             if os.path.isfile(f_out):
                 self.logger.info("%s already converted to %s"%(f,f_out))
             else:
@@ -182,7 +178,7 @@ class OMEXMLMaker(object):
         self.herder.check_status()
         self.logger.info('%i files need conversion'%len(self.shellrunners))
         while self.toconvert:
-            time.sleep(5)
+            time.sleep(2)
             self.check_progress()
         return self.converted,self.failed
 
