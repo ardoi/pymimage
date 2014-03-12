@@ -74,11 +74,13 @@ class ImageMaker(object):
             converted, failed = ome_maker.convert_all()
             for ome_file in converted:
                 ome_file = self.check_for_ome(file_name)
-                ome_files[file_name].append(ome_file)
+                ome_files[file_name]=ome_file
+            for name in failed:
+                ome_files[file_name]=None
         return ome_files
 
     def load_file(self, file_name):
-        return self.load_files([file_name])
+        return self.load_files([file_name])[file_name]
 
 
 

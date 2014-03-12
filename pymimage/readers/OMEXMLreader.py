@@ -24,6 +24,9 @@ class OMEXMLReader(object):
             "Value": nsa + "Value", "OriginalMetadata": nso + "OriginalMetadata",
             "Description": ns + "Description", "ROI":nsr+"ROI", "Union":nsr+"Union", "Shape":nsr+"Shape", "Line":nsr+"Line"}
 
+    def __init__(self, filename):
+        self.filename = filename
+
     @property
     def image_width(self):
         return self.image_attrs[self.active_type]["image_width"]

@@ -77,16 +77,18 @@ def bfconvert_filename_from_runner(runner):
     name = os.path.basename(command.split('"')[1])
     return name
 
+
+
+
 class OMEXMLMaker(object):
 
-    def __init__(self, parent = None):
-        super(OMEXMLMaker, self).__init__(parent)
+    def __init__(self):
         if hasattr(sys, 'frozen'):
             #windows package created with pyinstaller. In order to access bftools a different approach is needed
-            tool_dir = os.path.normpath(os.path.join(os.path.dirname(sys.executable),'bftools'))
+            self.tool_dir = os.path.normpath(os.path.join(os.path.dirname(sys.executable),'bftools'))
         else:
-            tool_dir = os.path.normpath(os.path.join(os.path.abspath(os.path.dirname(__file__)),'..','..','..','lib','bftools'))
-        self.convert_cmd = os.path.join(tool_dir,'bfconvert')+' -no-upgrade -compression zlib  "{0}" "{1}"'
+            self.tool_dir = os.path.normpath(os.path.join(os.path.abspath(os.path.dirname(__file__)),'..','..','bftools'))
+        self.convert_cmd = os.path.join(self.tool_dir,'bfconvert')+' -no-upgrade -compression zlib  "{0}" "{1}"'
         self.toconvert = []
         self.converted = []
         self.failed = []
@@ -98,8 +100,28 @@ class OMEXMLMaker(object):
         #    self.logger.addHandler(hh)
         #    self.logger.setLevel(logging.DEBUG)
         self.logger.info("OMXMLMaker created")
-        self.logger.info('Bioformats directory is: {}'.format(tool_dir))
+        self.logger.info( os.path.dirname(__file__))
+        self.logger.info('Bioformats directory is: {}'.format(self.tool_dir))
         self.done = 0
+        def tools_check(tool_dir):
+            cmd = os.path.join(tool_dir, 'bfconvert')
+            p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
+            retcode = p.wait()
+            if retcode==127:
+                self.logger.error("Wrong location for bftools: {}".format(tool_dir))
+                return False
+            return True
+        def java_check():
+            java_cmd = "java -version"
+            p = Popen(java_cmd, shell=True, stdout=PIPE, stderr=PIPE)
+            retcode = p.wait()
+            if retcode:
+                self.logger.error("Java missing. It is needed to convert files into a readable format.")
+                return False
+            return True
+        if not (java_check() and tools_check(self.tool_dir)):
+            raise RuntimeError
+
 
     def reset_convert_list(self):
         self.toconvert = []
@@ -127,6 +149,9 @@ class OMEXMLMaker(object):
                     if os.path.isfile(omename):
                         os.remove(omename)
                         self.logger.warning('Removing failed conversion result: %s'%omename)
+                elif res[0] == 127:
+                    self.logger.error("bftools not found at {}".format(self.tool_dir))
+                    self.failed.append(f)
                 else:
                     self.logger.info(res[2])
                     self.converted.append(f)
@@ -150,6 +175,7 @@ class OMEXMLMaker(object):
             else:
                 self.logger.info("Converting %s to %s"%(f,f_out))
                 run_cmd = self.convert_cmd.format(f,f_out)
+                self.logger.info("Command: {}".format(run_cmd))
                 runner = ShellRunner(run_cmd)
                 self.shellrunners[f] = runner
                 self.herder.add_runner(runner)
