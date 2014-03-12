@@ -1,10 +1,8 @@
-import time
-import os
-import sys
 from subprocess import Popen, PIPE
 import logging
-
-from PyQt5 import QtCore as QC
+import os
+import sys
+import time
 
 
 
@@ -23,10 +21,6 @@ class RunnerHerder:
         self.runners += 1
 
     def check_status(self):
-        #print "\nSTATUS CHECK"
-        #print 'Running', len(self.running_list)
-        #print 'Done', len(self.done_list)
-        #print 'Torun', len(self.torun_list)
         running = 0
         remove_from_running=[]
         for runner in self.running_list:
@@ -37,7 +31,7 @@ class RunnerHerder:
                 remove_from_running.append(runner)
         for r in remove_from_running:
             self.running_list.remove(r)
-        #self.logger.info('%i running, %i done'%(running, len(self.done_list)))
+        self.logger.info('%i running, %i done'%(running, len(self.done_list)))
 
         if len(self.done_list) == self.runners:
             self.logger.debug('Conversion process for %i files finished'%self.runners)
@@ -83,13 +77,9 @@ def bfconvert_filename_from_runner(runner):
     name = os.path.basename(command.split('"')[1])
     return name
 
-class OMEXMLMaker(QC.QObject):
-    conversion_finished = QC.pyqtSignal()
-    conversion_update = QC.pyqtSignal()
-    set_file_being_inspected_label = QC.pyqtSignal(str)
-    filesConverted = QC.pyqtSignal(int)
+class OMEXMLMaker(object):
 
-    def __init__(self, parent = None, signals = True):
+    def __init__(self, parent = None):
         super(OMEXMLMaker, self).__init__(parent)
         if hasattr(sys, 'frozen'):
             #windows package created with pyinstaller. In order to access bftools a different approach is needed
@@ -97,25 +87,26 @@ class OMEXMLMaker(QC.QObject):
         else:
             tool_dir = os.path.normpath(os.path.join(os.path.abspath(os.path.dirname(__file__)),'..','..','..','lib','bftools'))
         self.convert_cmd = os.path.join(tool_dir,'bfconvert')+' -no-upgrade -compression zlib  "{0}" "{1}"'
-        self.toconvert = {}
+        self.toconvert = []
+        self.converted = []
+        self.failed = []
         self.logger = logging.getLogger(__name__)
-        if not self.logger.root.handlers and not self.logger.handlers:
-            hh = logging.StreamHandler(sys.stdout)
-            log_format = "%(levelname)s:%(name)s:%(funcName)s:%(lineno)d:%(asctime)s %(message)s"
-            hh.setFormatter(logging.Formatter(log_format))
-            self.logger.addHandler(hh)
-            self.logger.setLevel(logging.DEBUG)
+        #if not self.logger.root.handlers and not self.logger.handlers:
+        #    hh = logging.StreamHandler(sys.stdout)
+        #    log_format = "%(levelname)s:%(name)s:%(funcName)s:%(lineno)d:%(asctime)s %(message)s"
+        #    hh.setFormatter(logging.Formatter(log_format))
+        #    self.logger.addHandler(hh)
+        #    self.logger.setLevel(logging.DEBUG)
         self.logger.info("OMXMLMaker created")
         self.logger.info('Bioformats directory is: {}'.format(tool_dir))
         self.done = 0
-        self.signals = signals
 
     def reset_convert_list(self):
-        self.toconvert = {}
+        self.toconvert = []
 
-    def add_file_to_convert(self, caller):
-        #caller is dummyreader instance who added file to be converted. it needs to be notified when file is done
-        self.toconvert[caller.file_name] = caller
+    def add_file_to_convert(self, file_in, file_out):
+        #caller is reader instance who added file to be converted. it needs to be notified when file is done
+        self.toconvert.append((file_in, file_out))
 
     def check_progress(self):
         for f in self.shellrunners.keys():
@@ -125,15 +116,6 @@ class OMEXMLMaker(QC.QObject):
                 self.files_to_convert.remove(f)
                 self.logger.debug('%i files left to convert'%len(self.files_to_convert))
                 self.logger.debug("\n".join(self.files_to_convert))
-                if self.files_to_convert:
-                    print 'running ', self.herder.running_list
-                    running_names = []
-                    for runner in self.herder.running_list:
-                        running_names.append(bfconvert_filename_from_runner(runner))
-                    running_string = ", ".join(running_names)
-                    self.set_file_being_inspected_label.emit(running_string)
-                else:
-                    self.set_file_being_inspected_label.emit("Done")
 
                 res = self.shellrunners[f].result()
                 if res[0] == 1:
@@ -141,69 +123,44 @@ class OMEXMLMaker(QC.QObject):
                     self.logger.error('Command: '+self.shellrunners[f].command)
                     self.logger.error(res[1])
                     omename = [el for el in self.shellrunners[f].command.split('"') if el.strip()][-1]
+                    self.failed.append(f)
                     if os.path.isfile(omename):
                         os.remove(omename)
-                        self.logger.error('Removing failed conversion result: %s'%omename)
-                    self.toconvert[f].set_conversion_failed()
+                        self.logger.warning('Removing failed conversion result: %s'%omename)
                 else:
                     self.logger.info(res[2])
-                    self.toconvert[f].check_for_ome()
+                    self.converted.append(f)
+                    #self.toconvert[f].check_for_ome()
                 self.done += 1
-                self.filesConverted.emit(self.done)
+                #self.filesConverted.emit(self.done)
         if not self.herder.check_status():
-            if self.signals:
-                self.timer.stop()
             self.wrap_up_conversion()
-        self.conversion_update.emit()
+
 
     def convert_all(self):
         self.time0 = time.time()
         self.done = 0
         self.shellrunners = {}
         self.herder = RunnerHerder(3)
-        self.files_to_convert = self.toconvert.keys()
+        self.files_to_convert = [el[0] for el in self.toconvert]
         self.files_to_convert.sort()
-        for f in self.files_to_convert:
-            #ome_dir = self.ome_dir_name(f)
-            microscope_image = self.toconvert[f]
-            ome_name = microscope_image.ome_full_name
-            f_out = ome_name
-            #check if file really needs converting
+        for f,f_out in self.toconvert:
             if os.path.isfile(f_out):
-                print "%s already converted to %s"%(f,f_out)
+                self.logger.info("%s already converted to %s"%(f,f_out))
             else:
-                print "Converting %s to %s"%(f,f_out)
+                self.logger.info("Converting %s to %s"%(f,f_out))
                 run_cmd = self.convert_cmd.format(f,f_out)
-                print run_cmd
-                #QC.QTimer.singleShot(500,lambda :convert(run_cmd))
- #               convert(run_cmd)
-                #if len(self.shellrunners) == 0:
-                #    self.emit(QC.SIGNAL('set_file_being_inspected_label(QString)'),\
-                #            str(os.path.basename(f)))
                 runner = ShellRunner(run_cmd)
                 self.shellrunners[f] = runner
                 self.herder.add_runner(runner)
         self.herder.check_status()
         self.logger.info('%i files need conversion'%len(self.shellrunners))
-        if self.herder.torun_list:
-            lll = [el for el in self.herder.torun_list[-1].command.split('"') if el.strip()]
-            filename = lll[-2]
-        else:
-            filename = ""
-        if self.signals:
-            self.set_file_being_inspected_label.emit(str(os.path.basename(filename)))
-            self.timer = QC.QTimer()
-            self.timer.timeout.connect(self.check_progress)
-            self.timer.start(1000)
-            self.filesConverted.emit(self.done)
-        else:
-            while self.toconvert:
-                time.sleep(5)
-                self.check_progress()
+        while self.toconvert:
+            time.sleep(5)
+            self.check_progress()
+        return self.converted,self.failed
 
     def wrap_up_conversion(self):
         self.logger.info('Total time taken by conversion %.1f seconds'%(time.time()-self.time0))
-        self.conversion_finished.emit()
-        self.toconvert = {}
-
+        self.reset_convert_list()
 

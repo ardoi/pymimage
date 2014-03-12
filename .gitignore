@@ -28,3 +28,4 @@ pip-log.txt
 .tox
 nosetests.xml
 
+.ipynb_checkpoints
