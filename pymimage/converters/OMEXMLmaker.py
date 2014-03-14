@@ -81,6 +81,16 @@ def bfconvert_filename_from_runner(runner):
 
 
 class OMEXMLMaker(object):
+    """Generate OME-XML files from various microscope file formats. All gruntwork is passed on
+    to OME-TOOL's bfconvert"""
+
+    @property
+    def done(self):
+        return self._done
+
+    @done.setter
+    def done(self, val):
+        self._done = val
 
     def __init__(self):
         if hasattr(sys, 'frozen'):
@@ -102,7 +112,6 @@ class OMEXMLMaker(object):
         self.logger.info("OMXMLMaker created")
         self.logger.info( os.path.dirname(__file__))
         self.logger.info('Bioformats directory is: {}'.format(self.tool_dir))
-        self.done = 0
         def tools_check(tool_dir):
             cmd = os.path.join(tool_dir, 'bfconvert')
             p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
@@ -128,6 +137,10 @@ class OMEXMLMaker(object):
     def add_file_to_convert(self, file_in, file_out):
         self.toconvert[file_in] = file_out
 
+    def update_running_list(self):
+        pass
+    def progress_checked(self):
+        pass
     def check_progress(self):
         for f in self.shellrunners.keys():
             if self.shellrunners[f].done == True:
@@ -136,6 +149,7 @@ class OMEXMLMaker(object):
                 self.files_to_convert.remove(f)
                 self.logger.debug('%i files left to convert'%len(self.files_to_convert))
                 self.logger.debug("\n".join(self.files_to_convert))
+                self.update_running_list()
 
                 res = self.shellrunners[f].result()
                 if res[0] == 1:
@@ -154,8 +168,10 @@ class OMEXMLMaker(object):
                     self.logger.info(res[2])
                     self.converted.append(f)
                 self.done += 1
+
         if not self.herder.check_status():
             self.wrap_up_conversion()
+        self.progress_checked()
 
 
     def convert_all(self):
@@ -177,12 +193,71 @@ class OMEXMLMaker(object):
                 self.herder.add_runner(runner)
         self.herder.check_status()
         self.logger.info('%i files need conversion'%len(self.shellrunners))
-        while self.toconvert:
-            time.sleep(2)
-            self.check_progress()
+        self.start_conversion()
         return self.converted,self.failed
 
     def wrap_up_conversion(self):
         self.logger.info('Total time taken by conversion %.1f seconds'%(time.time()-self.time0))
         self.reset_convert_list()
 
+    def start_conversion(self):
+        while self.toconvert:
+            time.sleep(2)
+            self.check_progress()
+
+
+class OMEXMLMakerQt(OMEXMLMaker):
+    """OMEXMLMaker that utilizes Qt QTimer and emits signals based on conversion process"""
+
+    @OMEXMLMaker.done.setter
+    def done(self, val):
+        self._done = val
+        self.qt_sender.files_converted.emit(val)
+
+    def __init__(self):
+        super(OMEXMLMakerQt, self).__init__()
+        try:
+            from PyQt5 import QtCore as QC
+            self.QC = QC
+            class SenderObject(QC.QObject):
+                conversion_finished = QC.pyqtSignal()
+                conversion_update = QC.pyqtSignal()
+                set_file_being_inspected_label = QC.pyqtSignal(str)
+                files_converted = QC.pyqtSignal(int)
+
+            self.qt_sender = SenderObject()
+        except ImportError, e:
+            self.logger.error("Cannot import PyQ5! Use the non-Qt class")
+            raise e
+
+
+    def update_running_list(self):
+        if self.files_to_convert:
+            running_names = []
+            for runner in self.herder.running_list:
+                running_names.append(bfconvert_filename_from_runner(runner))
+            running_string = ", ".join(running_names)
+            self.qt_sender.set_file_being_inspected_label.emit(running_string)
+        else:
+            self.qt_sender.set_file_being_inspected_label.emit("Done")
+
+    def progress_checked(self):
+        self.qt_sender.conversion_update.emit()
+
+    def start_conversion(self):
+        if self.herder.torun_list:
+            lll = [el for el in self.herder.torun_list[-1].command.split('"') if el.strip()]
+            filename = lll[-2]
+        else:
+            filename = ""
+        self.qt_sender.set_file_being_inspected_label.emit(str(os.path.basename(filename)))
+        self.timer = self.QC.QTimer()
+        self.timer.timeout.connect(self.check_progress)
+        self.timer.start(1000)
+        self.done = 0
+        self.qt_sender.files_converted.emit(self.done)
+
+    def wrap_up_conversion(self):
+        self.logger.info('Total time taken by conversion %.1f seconds'%(time.time()-self.time0))
+        self.qt_sender.conversion_finished.emit()
+        self.reset_convert_list()
