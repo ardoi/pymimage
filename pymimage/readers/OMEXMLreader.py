@@ -8,6 +8,7 @@ import os
 import logging
 
 import numpy
+import inflect
 
 
 class OMEXMLReader(object):
@@ -178,9 +179,11 @@ class OMEXMLReader(object):
                 self.image_step_y = float(pix_attr['PhysicalSizeY'])
             except KeyError:
                 self.image_step_y = None
-            message = "Image {}: {} x {} pixels ({} total), {} channels, {} frames".\
+            pluralizer = inflect.engine()
+            message = "Image {}: {} x {} pixels ({} total), {} {}, {} {}".\
                     format(self.active_image_number, self.image_width, self.image_height,
-                           self.pixels, self.channels, self.frames)
+                           self.pixels, self.channels,pluralizer.plural("channel", self.channels),
+                           self.frames, pluralizer.plural("frame",self.frames))
             if self.image_step_x and self.image_step_y:
                 message+=", dx:dy = {} : {}".format(self.image_step_x, self.image_step_y)
             self.logger.info(message)
