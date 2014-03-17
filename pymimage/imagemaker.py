@@ -8,8 +8,6 @@ from converters.OMEXMLmaker import OMEXMLMaker
 class ImageMaker(object):
     bytes_to_read = 1024**2
     hash_digits = 10
-    plugin_folder = os.path.join("readers","custom")
-    plugin_folder = "pymimage/readers"
 
     def __init__(self, ome_dir):
         self.ome_dir = ome_dir
