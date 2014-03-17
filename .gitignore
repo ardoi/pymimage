@@ -29,3 +29,7 @@ pip-log.txt
 nosetests.xml
 
 .ipynb_checkpoints
+.ropeproject/config.py
+.ropeproject/globalnames
+.ropeproject/history
+.ropeproject/objectdb
