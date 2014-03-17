@@ -83,6 +83,14 @@ class OMEXMLReader(object):
     def image_step_y(self, val ):
         self.image_attrs[self.active_image_number]["image_step_y"] = val
 
+    @property
+    def image_step_x(self):
+        return self.image_attrs[self.active_image_number]["image_step_x"]
+
+    @image_step_x.setter
+    def image_step_x(self, val ):
+        self.image_attrs[self.active_image_number]["image_step_x"] = val
+
     def read_meta(self):
         self.ome_type = os.path.splitext(self.filename)[-1]
         #based on whether we are opeing a OME-XML or OME-TIFF file the tags contained in the XML are different
