@@ -14,8 +14,15 @@ class ImageMaker(object):
         import readers.LSMreader
         import readers.OIBreader
         import readers.VTITIFreader
-        print 'im',CustomReader.registered
+        self.logger = logging.getLogger(__name__)
         self.hash_cache={}
+        if not os.path.isdir(self.ome_dir):
+            try:
+                os.mkdir(self.ome_dir)
+            except OSError, e:
+                self.logger.error("OME folder {} does not exist and cannot be created".
+                                  format(self.ome_dir))
+                raise e
 
 
     @staticmethod
@@ -32,7 +39,7 @@ class ImageMaker(object):
     def check_for_ome(self, file_name, force_reader = None):
         ome_full_name, ome_name = self.get_ome_full_name(file_name)
         if os.path.isfile(ome_full_name):
-            logging.info('Ome file %s found for image %s'%(ome_name, file_name))
+            self.logger.info('Ome file %s found for image %s'%(ome_name, file_name))
             if force_reader:
                 reader = force_reader
             else:
@@ -41,7 +48,7 @@ class ImageMaker(object):
             ome_file.read_meta()
             return ome_file
         else:
-            logging.info('No OME file %s found for image %s'%(ome_name, file_name))
+            self.logger.info('No OME file %s found for image %s'%(ome_name, file_name))
             return None
 
     def get_ome_full_name(self, file_name):

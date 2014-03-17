@@ -18,6 +18,7 @@ class CustomReader(object):
     def get_reader(cls, file_name):
         extension = os.path.splitext(file_name)[-1].split('.')[-1].lower()
         suitable = []
+        logger = logging.getLogger(__name__)
         for reader in cls.registered:
             if isinstance(reader.ftype, str):
                 reader_types = [reader.ftype]
@@ -29,11 +30,11 @@ class CustomReader(object):
         if len(suitable)>1:
             message = "More than one reader found for file type {}: {}".\
                     format(extension, ", ".join([cl.__name__ for cl in suitable]))
-            logging.warning(message)
+            logger.warning(message)
         if suitable:
             reader = suitable[0]
         else:
             reader = OMEXMLReader
-        logging.info("Using reader: {}".format(reader.__name__))
+        logger.info("Using reader: {}".format(reader.__name__))
         return reader
 
