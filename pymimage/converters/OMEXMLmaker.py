@@ -87,10 +87,37 @@ def bfconvert_filename_from_runner(runner):
     return name
 
 
+def tools_check(tool_dir, logger):
+    cmd = os.path.join(tool_dir, 'bfconvert')
+    p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
+    retcode = p.wait()
+    if retcode == 127:
+        logger.error(
+            "Wrong location for bftools: {}".format(tool_dir))
+        return False
+    return True
+
+
+def java_check(logger):
+    java_cmd = "java -version"
+    p = Popen(java_cmd, shell=True, stdout=PIPE, stderr=PIPE)
+    retcode = p.wait()
+    if retcode:
+        logger.error("Java missing. It is needed to \
+                            convert files into a readable format.")
+        return False
+    return True
+
+
 class OMEXMLMaker(object):
 
     """Generate OME-XML files from various microscope file formats.
-    All gruntwork is passed on to OME-TOOL's bfconvert"""
+
+    All gruntwork is passed on to OME-TOOL's bfconvert. Subclassed Makers
+    can extend the behaviour during conversion (e.g., emitting signals)
+
+    Attributes:
+        """
 
     @property
     def done(self):
@@ -123,45 +150,47 @@ class OMEXMLMaker(object):
         #    hh.setFormatter(logging.Formatter(log_format))
         #    self.logger.addHandler(hh)
         #    self.logger.setLevel(logging.DEBUG)
-        self.logger.info("OMXMLMaker created")
+        self.logger.info("{} created".format(self.__class__.__name__))
         self.logger.info(os.path.dirname(__file__))
         self.logger.info('Bioformats directory is: {}'.format(self.tool_dir))
 
-        def tools_check(tool_dir):
-            cmd = os.path.join(tool_dir, 'bfconvert')
-            p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
-            retcode = p.wait()
-            if retcode == 127:
-                self.logger.error(
-                    "Wrong location for bftools: {}".format(tool_dir))
-                return False
-            return True
-
-        def java_check():
-            java_cmd = "java -version"
-            p = Popen(java_cmd, shell=True, stdout=PIPE, stderr=PIPE)
-            retcode = p.wait()
-            if retcode:
-                self.logger.error("Java missing. It is needed to \
-                                  convert files into a readable format.")
-                return False
-            return True
-        if not (java_check() and tools_check(self.tool_dir)):
+        if not (java_check(self.logger) and tools_check(self.tool_dir, self.logger)):
             raise RuntimeError
 
-    def reset_convert_list(self):
+    def _reset_convert_list(self):
         self.toconvert = {}
 
     def add_file_to_convert(self, file_in, file_out):
+        """Add file to be converted
+
+        Will add file to the conversion list but won't
+        start conversion
+
+        Args:
+            file_in: name of the file to be converted
+            file_out: output file name (usually <file_in hash>.ome)
+        """
         self.toconvert[file_in] = file_out
 
-    def update_running_list(self):
-        pass
+    def _update_running_list(self):
+        """Stuff to do when updating running list
 
-    def progress_checked(self):
-        pass
+        Does nothing in the base class, but can be used to
+        perform extra actions (e.g., emitting signals) in
+        subclasses
+        """
 
-    def check_progress(self):
+    def _progress_checked(self):
+        """Stuff to do when finished checking status of conversion
+
+        Does nothing in the base class, but can be used to
+        perform extra actions (e.g., emitting signals) in
+        subclasses
+        """
+
+    def _check_progress(self):
+        """Checks progress of shellrunners and stores the execution status."""
+
         for f in self.shellrunners.keys():
             if self.shellrunners[f].done:
                 continue
@@ -170,7 +199,7 @@ class OMEXMLMaker(object):
                 self.logger.debug('%i files left to convert' %
                                   len(self.files_to_convert))
                 self.logger.debug("\n".join(self.files_to_convert))
-                self.update_running_list()
+                self._update_running_list()
 
                 res = self.shellrunners[f].result()
                 if res[0] == 1:
@@ -194,10 +223,17 @@ class OMEXMLMaker(object):
                 self.done += 1
 
         if not self.herder.check_status():
-            self.wrap_up_conversion()
-        self.progress_checked()
+            self._wrap_up_conversion()
+        self._progress_checked()
 
     def convert_all(self):
+        """Convert all queued files to OME format
+
+        Returns:
+            A tuple of list. First contains filenames that were successfully
+            converted. The second contains failed conversions.
+        """
+
         self.time0 = time.time()
         self.done = 0
         self.shellrunners = {}
@@ -216,18 +252,23 @@ class OMEXMLMaker(object):
                 self.herder.add_runner(runner)
         self.herder.check_status()
         self.logger.info('%i files need conversion' % len(self.shellrunners))
-        self.start_conversion()
+        self._start_conversion()
         return self.converted, self.failed
 
-    def wrap_up_conversion(self):
+    def _wrap_up_conversion(self):
         self.logger.info('Total time taken by conversion %.1f seconds' %
                          (time.time() - self.time0))
-        self.reset_convert_list()
+        self._reset_convert_list()
 
-    def start_conversion(self):
+    def _start_conversion(self):
+        """Start conversion process
+
+        Override in subclasses to use other timing methods (e.g., QTimer)
+        """
+
         while self.toconvert:
             time.sleep(2)
-            self.check_progress()
+            self._check_progress()
 
 
 class OMEXMLMakerQt(OMEXMLMaker):
@@ -257,7 +298,7 @@ class OMEXMLMakerQt(OMEXMLMaker):
             self.logger.error("Cannot import PyQ5! Use the non-Qt class")
             raise e
 
-    def update_running_list(self):
+    def _update_running_list(self):
         if self.files_to_convert:
             running_names = []
             for runner in self.herder.running_list:
@@ -267,7 +308,7 @@ class OMEXMLMakerQt(OMEXMLMaker):
         else:
             self.qt_sender.set_file_being_inspected_label.emit("Done")
 
-    def progress_checked(self):
+    def _progress_checked(self):
         self.qt_sender.conversion_update.emit()
 
     def start_conversion(self):
@@ -280,13 +321,13 @@ class OMEXMLMakerQt(OMEXMLMaker):
         self.qt_sender.set_file_being_inspected_label.emit(
             str(os.path.basename(filename)))
         self.timer = self.QC.QTimer()
-        self.timer.timeout.connect(self.check_progress)
+        self.timer.timeout.connect(self._check_progress)
         self.timer.start(1000)
         self.done = 0
         self.qt_sender.files_converted.emit(self.done)
 
-    def wrap_up_conversion(self):
+    def _wrap_up_conversion(self):
         self.logger.info('Total time taken by conversion %.1f seconds' %
                          (time.time() - self.time0))
         self.qt_sender.conversion_finished.emit()
-        self.reset_convert_list()
+        self._reset_convert_list()
