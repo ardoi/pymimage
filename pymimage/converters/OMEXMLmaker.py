@@ -57,18 +57,39 @@ class RunnerHerder:
 
 class ShellRunner:
 
+    """Convenience class to run shell commands.
+
+    Attributes:
+        done: True if command execution has finished
+    """
+
     def __init__(self, command):
+        """Instantiate a ShellRunner.
+
+        Args:
+            command: the command to execute
+        """
+
         self.done = False
         self.command = command
         self.running = False
-        self.p = None
+        self.process = None
 
     def start(self):
-        self.p = Popen(self.command, shell=True, stdout=PIPE, stderr=PIPE)
+        """Start execution of shell command"""
+
+        self.process = Popen(self.command, shell=True, stdout=PIPE, stderr=PIPE)
         self.running = True
 
     def is_done(self):
-        if not self.p or self.p.poll() is None:
+        """Check if command execution has finished
+
+        Returns:
+            Either True or False, depending on whether the command
+            is still running. Returns True even if the command has failed.
+        """
+
+        if not self.process or self.process.poll() is None:
             return False
         else:
             self.done = True
@@ -76,9 +97,15 @@ class ShellRunner:
             return True
 
     def result(self):
-        err = self.p.stderr.read()
-        out = self.p.stdout.read()
-        return [self.p.returncode, err, out]
+        """Combined result and output from command execution
+
+        Returns:
+            List with returncode, error and std output
+        """
+
+        err = self.process.stderr.read()
+        out = self.process.stdout.read()
+        return [self.process.returncode, err, out]
 
 
 def bfconvert_filename_from_runner(runner):
@@ -136,7 +163,7 @@ class OMEXMLMaker(object):
         else:
             self.tool_dir = os.path.normpath(
                 os.path.join(os.path.abspath(os.path.dirname(__file__)),
-                             '..', '..', 'bftools'))
+                             '..',  'bftools'))
         self.convert_cmd = os.path.join(self.tool_dir, 'bfconvert') \
             + ' -no-upgrade -compression zlib  "{0}" "{1}"'
         self.toconvert = {}
@@ -154,7 +181,8 @@ class OMEXMLMaker(object):
         self.logger.info(os.path.dirname(__file__))
         self.logger.info('Bioformats directory is: {}'.format(self.tool_dir))
 
-        if not (java_check(self.logger) and tools_check(self.tool_dir, self.logger)):
+        if not (java_check(self.logger) and
+                tools_check(self.tool_dir, self.logger)):
             raise RuntimeError
 
     def _reset_convert_list(self):
