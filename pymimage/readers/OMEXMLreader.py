@@ -13,10 +13,10 @@ import inflect
 
 class OMEXMLReader(object):
     #OME-XML namespace stuff
-    ns = "{http://www.openmicroscopy.org/Schemas/OME/2012-06}"
-    nsa = "{http://www.openmicroscopy.org/Schemas/SA/2012-06}"
-    nsb = "{http://www.openmicroscopy.org/Schemas/BinaryFile/2012-06}"
-    nsr = "{http://www.openmicroscopy.org/Schemas/ROI/2012-06}"
+    ns = "{http://www.openmicroscopy.org/Schemas/OME/2013-06}"
+    nsa = "{http://www.openmicroscopy.org/Schemas/SA/2013-06}"
+    nsb = "{http://www.openmicroscopy.org/Schemas/BinaryFile/2013-06}"
+    nsr = "{http://www.openmicroscopy.org/Schemas/ROI/2013-06}"
     nso = "{openmicroscopy.org/OriginalMetadata}"
     tags = {'Image': ns + "Image", 'Pixels': ns + "Pixels", 'BinData': nsb + "BinData", 'Channel': ns + "Channel",
             "TiffData":ns+"TiffData",
