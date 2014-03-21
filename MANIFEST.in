@@ -1,0 +1,4 @@
+recursive-exclude test *
+graft pymimage/
+global-exclude *.pyc
+include README.md

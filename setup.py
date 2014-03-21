@@ -1,6 +1,6 @@
 from setuptools import setup
 setup(
-    name='PyMImage',
+    name='pymimage',
     version='0.1',
     author='Ardo Illaste',
     author_email='ardo.illaste@gmail.com',
@@ -8,10 +8,10 @@ setup(
               'pymimage.readers',
               'pymimage.converters'],
     url='https://github.com/ardoi/pymimage',
-    license='LICENSE.txt',
+    license='LICENSE',
     description='Read microscope images',
     package_data={'pymimage':[ 'bftools/*']},
-    long_description=open('README.txt').read(),
+    long_description=open('README.md').read(),
     install_requires=[
         "numpy>=1.7.1",
         "inflect"
