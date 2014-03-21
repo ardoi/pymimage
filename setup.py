@@ -9,7 +9,7 @@ setup(
               'pymimage.converters'],
     url='https://github.com/ardoi/pymimage',
     license='LICENSE.txt',
-    description='',
+    description='Read microscope images',
     package_data={'pymimage':[ 'bftools/*']},
     long_description=open('README.txt').read(),
     install_requires=[

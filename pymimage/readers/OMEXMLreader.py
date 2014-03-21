@@ -24,9 +24,9 @@ class OMEXMLReader(object):
         "TiffData": ns + "TiffData",
         'StructuredAnnotations': nsa + "StructuredAnnotations",
         'XMLAnnotation': nsa + "XMLAnnotation",
-        "MDKey": nso + "Key", "MDValue": nso + "Value",
+        "MDKey": nsa + "Key", "MDValue": nsa + "Value",
         "AcquisitionDate": ns + "AcquisitionDate",
-        "Value": nsa + "Value", "OriginalMetadata": nso + "OriginalMetadata",
+        "Value": nsa + "Value", "OriginalMetadata": nsa + "OriginalMetadata",
         "Description": ns + "Description", "ROI": nsr + "ROI",
         "Union": nsr + "Union", "Shape": nsr + "Shape", "Line": nsr + "Line"}
 
