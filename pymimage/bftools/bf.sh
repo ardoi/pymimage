@@ -31,6 +31,8 @@ fi
 # Use any available proxy settings.
 BF_FLAGS="$BF_FLAGS -Dhttp.proxyHost=$PROXY_HOST -Dhttp.proxyPort=$PROXY_PORT"
 
+BF_FLAGS="$BF_FLAGS -Djava.awt.headless=true"
+
 # Run the command!
 if [ -n "$BF_DEVEL" ]
 then
