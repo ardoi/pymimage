@@ -1,7 +1,8 @@
 import numpy
 
-from OMEXMLreader import OMEXMLReader
-from customreader import CustomReader
+from pymimage.readers.OMEXMLreader import OMEXMLReader
+from pymimage.readers.customreader import CustomReader
+
 
 class VTITIFReader(OMEXMLReader, CustomReader):
     ftype = "tif"

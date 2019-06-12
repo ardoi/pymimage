@@ -1,11 +1,12 @@
 import numpy
 
-from OMEXMLreader import OMEXMLReader
-from customreader import CustomReader
+from pymimage.readers.OMEXMLreader import OMEXMLReader
+from pymimage.readers.customreader import CustomReader
 
 
 class OIBReader(OMEXMLReader, CustomReader):
     ftype = ["oib", "oif"]
+
     def _get_typespecific_extra_info(self):
         raw_keys = self.raw_annotation.keys()
         raw_keys.sort()

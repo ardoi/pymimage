@@ -1,14 +1,17 @@
 #from xml.etree.ElementTree import ElementTree, ParseError
 import xml.etree.ElementTree as ElementTree
 import base64
-import StringIO
+import sys
 import zlib
 import datetime
 import os
 import logging
-
 import numpy
 import inflect
+if sys.version_info[0] < 3:
+    from StringIO import StringIO
+else:
+    from io import StringIO, BytesIO
 
 
 class OMEXMLReader(object):
@@ -267,7 +270,7 @@ class OMEXMLReader(object):
             # Once self.frames number of frames have been read then
             # switch to the next channel
             frame = tiffdata_element_key % self.frames
-            channel = tiffdata_element_key / self.frames
+            channel = int(tiffdata_element_key / self.frames)
             tiffdata_element = tiffdata_elements[tiffdata_element_key]
             bin_attrib = tiffdata_element.attrib
             if self.bintagname == "BinData":
@@ -278,16 +281,16 @@ class OMEXMLReader(object):
                     pass
                 dtype = self.data_type
                 # decode base64 data
-                stringio_in = StringIO.StringIO(tiffdata_element.text)
-                stringio_out = StringIO.StringIO()
+                stringio_in = StringIO(tiffdata_element.text)
+                if sys.version_info[0] < 3:
+                    stringio_out = StringIO()
+                else:
+                    stringio_out = BytesIO()
                 base64.decode(stringio_in, stringio_out)
                 if compression:
-                    image_data = numpy.fromstring(
-                        zlib.decompress(stringio_out.getvalue()),
-                        dtype).astype('float32')
+                    image_data = numpy.frombuffer(zlib.decompress(stringio_out.getvalue()), dtype).astype('float32')
                 else:
-                    image_data = numpy.fromstring(
-                        stringio_out.getvalue(), dtype).astype('float32')
+                    image_data = numpy.frombuffer(stringio_out.getvalue(), dtype).astype('float32')
             # elif self.bintagname == "TiffData":
             #    ifd = int(bin_attrib["IFD"])
             #    self.pil_image.seek(ifd)
@@ -322,3 +325,6 @@ class OMEXMLReader(object):
             #raw_keys = self.raw_annotation.keys()
         # raw_keys.sort()
         self._get_typespecific_extra_info()
+
+    def _get_typespecific_extra_info(self):
+        pass

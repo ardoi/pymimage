@@ -2,11 +2,12 @@ import re
 
 import numpy
 
-from OMEXMLreader import OMEXMLReader
-from customreader import CustomReader
+from pymimage.readers.OMEXMLreader import OMEXMLReader
+from pymimage.readers.customreader import CustomReader
 
 
 class LSMReader(OMEXMLReader, CustomReader):
+
     ftype = "lsm"
 
     def _get_typespecific_extra_info(self):
@@ -48,7 +49,7 @@ class LSMReader(OMEXMLReader, CustomReader):
         self.event_times = []
         for event_no in raw_events.keys():
             self.event_times.append(float(raw_events[event_no]['Time']))
-        print 'events', len(self.event_times)
+        print('events', len(self.event_times))
 
         timestamp_keys = raw_timestamps.keys()
         timestamp_keys.sort()

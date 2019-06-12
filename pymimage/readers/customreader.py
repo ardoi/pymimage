@@ -1,18 +1,15 @@
 import logging
 import os
 
-from OMEXMLreader import OMEXMLReader
+from pymimage.readers.OMEXMLreader import OMEXMLReader
 
 class CustomReader(object):
     """Base class for readers that need to do some custom processing of the image data."""
 
-    class __metaclass__(type):
-        def __init__(cls, name, base, attrs):
-            print base
-            if not hasattr(cls, 'registered'):
-                cls.registered = []
-            else:
-                cls.registered.append(cls)
+    registered = []
+
+    def __init__(self, name, base, attrs):
+        self.registered.append(self)
 
     @classmethod
     def get_reader(cls, file_name):
@@ -27,7 +24,7 @@ class CustomReader(object):
             for ftype in reader_types:
                 if ftype == extension:
                     suitable.append(reader)
-        if len(suitable)>1:
+        if len(suitable) > 1:
             message = "More than one reader found for file type {}: {}".\
                     format(extension, ", ".join([cl.__name__ for cl in suitable]))
             logger.warning(message)

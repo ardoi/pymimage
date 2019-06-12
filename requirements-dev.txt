@@ -1,0 +1,3 @@
+nose
+pytest
+pytest-cov
